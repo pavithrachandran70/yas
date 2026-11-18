@@ -55,8 +55,13 @@
   margin: 0;
 }
 
-.removeButton {
+.buttonGroup {
+  display: flex;
+  gap: 0.5rem;
   margin-top: 0.5rem;
+}
+
+.removeButton {
   padding: 0.5rem 1rem;
   background-color: #f44336;
   color: white;

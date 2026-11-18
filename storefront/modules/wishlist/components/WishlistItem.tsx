@@ -2,6 +2,7 @@ import Link from 'next/link';
 
 import { WishlistItem as WishlistItemType } from '@/types/wishlist';
 
+import AddToCartButton from './AddToCartButton';
 import styles from './WishlistItem.module.css';
 
 interface WishlistItemProps {
@@ -37,13 +38,19 @@ export default function WishlistItem({ item, onRemove }: WishlistItemProps) {
 
         <p className={styles.price}>${price.toFixed(2)}</p>
 
-        {!item.isAvailable && item.discontinuedMessage && (
-          <p className={styles.discontinuedMessage}>{item.discontinuedMessage}</p>
+        {!item.isAvailable && (
+          <p className={styles.discontinuedMessage}>
+            {item.discontinuedMessage || 'This product is no longer available'}
+          </p>
         )}
 
-        <button type="button" onClick={handleRemoveClick} className={styles.removeButton}>
-          Remove
-        </button>
+        <div className={styles.buttonGroup}>
+          <AddToCartButton wishlistItemId={item.wishlistItemId} isAvailable={item.isAvailable} />
+
+          <button type="button" onClick={handleRemoveClick} className={styles.removeButton}>
+            Remove
+          </button>
+        </div>
       </div>
     </div>
   );

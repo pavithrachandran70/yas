@@ -1,11 +1,13 @@
 package com.yas.cart.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -16,6 +18,9 @@ import com.yas.cart.viewmodel.CartItemDeleteVm;
 import com.yas.cart.viewmodel.CartItemGetVm;
 import com.yas.cart.viewmodel.CartItemPostVm;
 import com.yas.cart.viewmodel.CartItemPutVm;
+import com.yas.cart.viewmodel.WishlistItemDetailVm;
+import com.yas.cart.viewmodel.WishlistItemToCartVm;
+import com.yas.commonlibrary.exception.AccessDeniedException;
 import com.yas.commonlibrary.exception.BadRequestException;
 import com.yas.commonlibrary.exception.InternalServerErrorException;
 import com.yas.commonlibrary.exception.NotFoundException;
@@ -44,6 +49,9 @@ class CartItemServiceTest {
     @Mock
     private ProductService productService;
 
+    @Mock
+    private WishlistService wishlistService;
+
     @Spy
     private CartItemMapper cartItemMapper = new CartItemMapper();
 
@@ -52,7 +60,7 @@ class CartItemServiceTest {
 
     @BeforeEach
     void setUp() {
-        Mockito.reset(cartItemRepository, productService);
+        Mockito.reset(cartItemRepository, productService, wishlistService);
     }
 
     private static final String CURRENT_USER_ID_SAMPLE = "userId";
@@ -246,6 +254,101 @@ class CartItemServiceTest {
             verify(cartItemRepository).saveAll(List.of(existingCartItem));
             assertEquals(1, cartItemGetVms.size());
             assertEquals(expectedQuantity, cartItemGetVms.getFirst().quantity());
+        }
+    }
+
+    @Nested
+    class AddFromWishlistTest {
+
+        @Test
+        void testAddFromWishlist_Success() {
+            WishlistItemToCartVm vm = WishlistItemToCartVm.builder().wishlistItemId(1L).build();
+            WishlistItemDetailVm wishlistItem = WishlistItemDetailVm.builder()
+                .wishlistItemId(1L)
+                .customerId(CURRENT_USER_ID_SAMPLE)
+                .productId(PRODUCT_ID_SAMPLE)
+                .isAvailable(true)
+                .build();
+
+            mockCurrentUserId(CURRENT_USER_ID_SAMPLE);
+            when(wishlistService.getWishlistItemById(1L)).thenReturn(wishlistItem);
+            when(productService.existsById(PRODUCT_ID_SAMPLE)).thenReturn(true);
+            when(cartItemRepository.findByCustomerIdAndProductId(anyString(), anyLong()))
+                .thenReturn(Optional.empty());
+            when(cartItemRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+
+            CartItemGetVm result = cartItemService.addFromWishlist(vm);
+
+            assertNotNull(result);
+            assertEquals(PRODUCT_ID_SAMPLE, result.productId());
+            assertEquals(CURRENT_USER_ID_SAMPLE, result.customerId());
+            assertEquals(1, result.quantity());
+            verify(cartItemRepository).save(any());
+        }
+
+        @Test
+        void testAddFromWishlist_Unavailable() {
+            WishlistItemToCartVm vm = WishlistItemToCartVm.builder().wishlistItemId(1L).build();
+            WishlistItemDetailVm wishlistItem = WishlistItemDetailVm.builder()
+                .wishlistItemId(1L)
+                .customerId(CURRENT_USER_ID_SAMPLE)
+                .productId(PRODUCT_ID_SAMPLE)
+                .isAvailable(false)
+                .build();
+
+            mockCurrentUserId(CURRENT_USER_ID_SAMPLE);
+            when(wishlistService.getWishlistItemById(1L)).thenReturn(wishlistItem);
+
+            assertThrows(BadRequestException.class, () -> cartItemService.addFromWishlist(vm));
+            verify(productService, never()).existsById(any());
+            verify(cartItemRepository, never()).save(any());
+        }
+
+        @Test
+        void testAddFromWishlist_AccessDenied() {
+            WishlistItemToCartVm vm = WishlistItemToCartVm.builder().wishlistItemId(1L).build();
+            WishlistItemDetailVm wishlistItem = WishlistItemDetailVm.builder()
+                .wishlistItemId(1L)
+                .customerId("other-customer-id")
+                .productId(PRODUCT_ID_SAMPLE)
+                .isAvailable(true)
+                .build();
+
+            mockCurrentUserId(CURRENT_USER_ID_SAMPLE);
+            when(wishlistService.getWishlistItemById(1L)).thenReturn(wishlistItem);
+
+            assertThrows(AccessDeniedException.class, () -> cartItemService.addFromWishlist(vm));
+            verify(productService, never()).existsById(any());
+            verify(cartItemRepository, never()).save(any());
+        }
+
+        @Test
+        void testAddFromWishlist_ProductAlreadyInCart() {
+            WishlistItemToCartVm vm = WishlistItemToCartVm.builder().wishlistItemId(1L).build();
+            WishlistItemDetailVm wishlistItem = WishlistItemDetailVm.builder()
+                .wishlistItemId(1L)
+                .customerId(CURRENT_USER_ID_SAMPLE)
+                .productId(PRODUCT_ID_SAMPLE)
+                .isAvailable(true)
+                .build();
+            CartItem existingCartItem = CartItem.builder()
+                .customerId(CURRENT_USER_ID_SAMPLE)
+                .productId(PRODUCT_ID_SAMPLE)
+                .quantity(2)
+                .build();
+
+            mockCurrentUserId(CURRENT_USER_ID_SAMPLE);
+            when(wishlistService.getWishlistItemById(1L)).thenReturn(wishlistItem);
+            when(productService.existsById(PRODUCT_ID_SAMPLE)).thenReturn(true);
+            when(cartItemRepository.findByCustomerIdAndProductId(anyString(), anyLong()))
+                .thenReturn(Optional.of(existingCartItem));
+            when(cartItemRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+
+            CartItemGetVm result = cartItemService.addFromWishlist(vm);
+
+            assertNotNull(result);
+            assertEquals(3, result.quantity());
+            verify(cartItemRepository).save(existingCartItem);
         }
     }
 

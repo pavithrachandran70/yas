@@ -8,8 +8,11 @@ import com.yas.cart.service.CartItemService;
 import com.yas.cart.viewmodel.CartItemDeleteVm;
 import com.yas.cart.viewmodel.CartItemGetVm;
 import com.yas.cart.viewmodel.CartItemPostVm;
+import com.yas.cart.utils.Constants;
 import com.yas.cart.viewmodel.CartItemPutVm;
+import com.yas.cart.viewmodel.WishlistItemToCartVm;
 import com.yas.commonlibrary.exception.ApiExceptionHandler;
+import com.yas.commonlibrary.exception.BadRequestException;
 import org.springframework.http.MediaType;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Nested;
@@ -245,6 +248,45 @@ class CartItemControllerTest {
                 .andExpect(status().isNoContent());
 
             verify(cartItemService).deleteCartItem(PRODUCT_ID_SAMPLE);
+        }
+    }
+
+    @Nested
+    class AddFromWishlistTest {
+
+        @Test
+        void testAddFromWishlist_ReturnsOk() throws Exception {
+            WishlistItemToCartVm vm = WishlistItemToCartVm.builder().wishlistItemId(1L).build();
+            CartItemGetVm expectedVm = CartItemGetVm.builder()
+                .customerId(CUSTOMER_ID_SAMPLE)
+                .productId(PRODUCT_ID_SAMPLE)
+                .quantity(1)
+                .build();
+
+            when(cartItemService.addFromWishlist(any())).thenReturn(expectedVm);
+
+            mockMvc.perform(post("/storefront/items/from-wishlist")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(objectMapper.writeValueAsString(vm)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.customerId").value(expectedVm.customerId()))
+                .andExpect(jsonPath("$.productId").value(expectedVm.productId()))
+                .andExpect(jsonPath("$.quantity").value(expectedVm.quantity()));
+
+            verify(cartItemService).addFromWishlist(any());
+        }
+
+        @Test
+        void testAddFromWishlist_Unavailable() throws Exception {
+            when(cartItemService.addFromWishlist(any()))
+                .thenThrow(new BadRequestException(Constants.ErrorCode.PRODUCT_NO_LONGER_AVAILABLE));
+
+            mockMvc.perform(post("/storefront/items/from-wishlist")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content("{\"wishlistItemId\":1}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.detail")
+                    .value("Product is no longer available and cannot be added to the cart"));
         }
     }
 }

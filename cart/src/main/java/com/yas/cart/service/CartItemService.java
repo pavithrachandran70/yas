@@ -8,6 +8,9 @@ import com.yas.cart.viewmodel.CartItemDeleteVm;
 import com.yas.cart.viewmodel.CartItemGetVm;
 import com.yas.cart.viewmodel.CartItemPostVm;
 import com.yas.cart.viewmodel.CartItemPutVm;
+import com.yas.cart.viewmodel.WishlistItemDetailVm;
+import com.yas.cart.viewmodel.WishlistItemToCartVm;
+import com.yas.commonlibrary.exception.AccessDeniedException;
 import com.yas.commonlibrary.exception.BadRequestException;
 import com.yas.commonlibrary.exception.InternalServerErrorException;
 import com.yas.commonlibrary.exception.NotFoundException;
@@ -22,6 +25,7 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.dao.PessimisticLockingFailureException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -33,6 +37,7 @@ public class CartItemService {
     private final CartItemRepository cartItemRepository;
     private final ProductService productService;
     private final CartItemMapper cartItemMapper;
+    private final WishlistService wishlistService;
 
     @Transactional
     public CartItemGetVm addCartItem(CartItemPostVm cartItemPostVm) {
@@ -92,6 +97,50 @@ public class CartItemService {
     public void deleteCartItem(Long productId) {
         String currentUserId = AuthenticationUtils.extractUserId();
         cartItemRepository.deleteByCustomerIdAndProductId(currentUserId, productId);
+    }
+
+    /**
+     * Adds a wishlist product to the cart and leaves the wishlist entry in place.
+     */
+    @Transactional
+    public CartItemGetVm addFromWishlist(WishlistItemToCartVm vm) {
+        String currentUserId = AuthenticationUtils.extractUserId();
+        WishlistItemDetailVm wishlistItem = wishlistService.getWishlistItemById(vm.wishlistItemId());
+
+        if (wishlistItem == null) {
+            throw new NotFoundException(Constants.ErrorCode.WISHLIST_ITEM_NOT_FOUND);
+        }
+        if (!Objects.equals(currentUserId, wishlistItem.customerId())) {
+            throw new AccessDeniedException(Constants.ErrorCode.WISHLIST_ITEM_ACCESS_DENIED);
+        }
+        if (!Boolean.TRUE.equals(wishlistItem.isAvailable())) {
+            throw new BadRequestException(Constants.ErrorCode.PRODUCT_NO_LONGER_AVAILABLE);
+        }
+
+        validateProduct(wishlistItem.productId());
+        log.info("Adding wishlist item {} for product {} to cart of customer {}",
+            wishlistItem.wishlistItemId(), wishlistItem.productId(), currentUserId);
+
+        Optional<CartItem> existingCartItem = cartItemRepository
+            .findByCustomerIdAndProductId(currentUserId, wishlistItem.productId());
+        if (existingCartItem.isPresent()) {
+            CartItem cartItem = existingCartItem.get();
+            cartItem.setQuantity(cartItem.getQuantity() + 1);
+            return cartItemMapper.toGetVm(cartItemRepository.save(cartItem));
+        }
+
+        CartItem cartItem = cartItemMapper.toCartItem(currentUserId, wishlistItem.productId(), 1);
+        try {
+            return cartItemMapper.toGetVm(cartItemRepository.save(cartItem));
+        } catch (DataIntegrityViolationException exception) {
+            log.error("Cart item already exists for customer {} and product {}",
+                currentUserId, wishlistItem.productId(), exception);
+            CartItem reloadedCartItem = cartItemRepository
+                .findByCustomerIdAndProductId(currentUserId, wishlistItem.productId())
+                .orElseThrow(() -> new InternalServerErrorException(Constants.ErrorCode.ADD_CART_ITEM_FAILED));
+            reloadedCartItem.setQuantity(reloadedCartItem.getQuantity() + 1);
+            return cartItemMapper.toGetVm(cartItemRepository.save(reloadedCartItem));
+        }
     }
 
     private void validateProduct(Long productId) {

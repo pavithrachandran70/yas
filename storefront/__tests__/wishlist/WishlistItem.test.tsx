@@ -28,6 +28,7 @@ describe('WishlistItem', () => {
     expect(screen.getByText('Product A')).toBeInTheDocument();
     expect(screen.getByText('$29.99')).toBeInTheDocument();
     expect(screen.getByText('Remove')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Add to Cart' })).toBeEnabled();
     expect(screen.getByAltText('Product A')).toHaveAttribute('src', item.thumbnailUrl);
     expect(screen.queryByText(/no longer available/i)).not.toBeInTheDocument();
   });
@@ -48,6 +49,7 @@ describe('WishlistItem', () => {
 
     expect(screen.getByText('Product B')).toBeInTheDocument();
     expect(screen.getByText('This product is no longer available')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Unavailable' })).toBeDisabled();
   });
 
   test('testWishlistItem_RemoveButton - calls onRemove with correct ID', async () => {
