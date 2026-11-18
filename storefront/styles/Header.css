@@ -241,6 +241,20 @@
 /*==================================================================
  [ Cart ]*/
 
+.header-wishlist {
+  padding: 8px 12px;
+  border-radius: 8px;
+  color: rgb(10, 104, 255);
+  font-weight: 600;
+  white-space: nowrap;
+  text-decoration: none;
+}
+
+.header-wishlist:hover {
+  background-color: #0a68ff33;
+  color: rgb(10, 104, 255);
+}
+
 .header-cart {
   padding: 8px 12px;
   border-radius: 8px;

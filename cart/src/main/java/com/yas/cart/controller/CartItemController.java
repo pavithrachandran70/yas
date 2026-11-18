@@ -5,10 +5,12 @@ import com.yas.cart.viewmodel.CartItemDeleteVm;
 import com.yas.cart.viewmodel.CartItemGetVm;
 import com.yas.cart.viewmodel.CartItemPostVm;
 import com.yas.cart.viewmodel.CartItemPutVm;
+import com.yas.cart.viewmodel.WishlistItemToCartVm;
 import jakarta.validation.Valid;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -52,5 +54,12 @@ public class CartItemController {
     public ResponseEntity<Void> deleteCartItem(@PathVariable Long productId) {
         cartItemService.deleteCartItem(productId);
         return ResponseEntity.noContent().build();
+    }
+
+    @PostMapping("/storefront/items/from-wishlist")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<CartItemGetVm> addFromWishlist(@Valid @RequestBody WishlistItemToCartVm vm) {
+        CartItemGetVm cartItemGetVm = cartItemService.addFromWishlist(vm);
+        return ResponseEntity.ok(cartItemGetVm);
     }
 }

@@ -1,0 +1,28 @@
+.addToCartButton {
+  padding: 0.5rem 1rem;
+  background-color: #1976d2;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.875rem;
+}
+
+.addToCartButton:hover {
+  background-color: #1565c0;
+}
+
+.addToCartButton:disabled {
+  background-color: #ccc;
+  cursor: not-allowed;
+}
+
+.disabledButton {
+  padding: 0.5rem 1rem;
+  background-color: #ccc;
+  color: #666;
+  border: none;
+  border-radius: 4px;
+  cursor: not-allowed;
+  font-size: 0.875rem;
+}
