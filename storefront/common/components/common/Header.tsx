@@ -7,6 +7,7 @@ import { useCartContext } from '@/context/CartContext';
 import { SearchSuggestion } from '@/modules/search/models/SearchSuggestion';
 import { getSuggestions } from '@/modules/search/services/SearchService';
 import { getCategoriesSuggestions } from '@/modules/catalog/services/CategoryService';
+import { isAuthenticated, refreshAuthentication } from '@/services/authService';
 import { useDebounce } from '@/utils/useDebounce';
 
 type Props = {
@@ -28,6 +29,7 @@ const Header = ({ children }: Props) => {
   const [searchSuggestions, setSearchSuggestions] = useState<SearchSuggestion[]>([]);
   const [categorySuggestions, setCategorySuggestions] = useState<string[]>([]);
   const [searchInput, setSearchInput] = useState<string>('');
+  const [signedIn, setSignedIn] = useState<boolean>(false);
 
   const keyword = useDebounce(searchInput, 300);
 
@@ -70,6 +72,21 @@ const Header = ({ children }: Props) => {
     };
 
     fetchTopCategories();
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+    if (isAuthenticated()) {
+      setSignedIn(true);
+    }
+    refreshAuthentication().then((signedInNow) => {
+      if (active) {
+        setSignedIn(signedInNow);
+      }
+    });
+    return () => {
+      active = false;
+    };
   }, []);
 
   const fetchSearchSuggestions = (keyword: string) => {
@@ -196,6 +213,12 @@ const Header = ({ children }: Props) => {
               ))}
             </div>
           </div>
+
+          {signedIn && (
+            <Link href="/wishlist" className="header-wishlist">
+              Wishlist
+            </Link>
+          )}
 
           {/* <!-- Cart --> */}
           <Link className="header-cart" href="/cart">

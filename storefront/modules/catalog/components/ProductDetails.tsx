@@ -15,6 +15,8 @@ import { YasError } from '@/common/services/errors/YasError';
 import { addCartItem } from '@/modules/cart/services/CartService';
 import { ProductOptionValueDisplay } from '../models/ProductOptionValueGet';
 import { Button } from 'react-bootstrap';
+import { isAuthenticated, redirectToLogin, refreshAuthentication } from '@/services/authService';
+import { addProductToWishlist } from '@/services/wishlistService';
 
 type ProductDetailProps = {
   product: ProductDetail;
@@ -85,6 +87,7 @@ export default function ProductDetails({
   const [isUnchecking, setIsUnchecking] = useState<boolean>(false);
   const [currentProduct, setCurrentProduct] = useState<ProductDetail | ProductVariation>(product);
   const { fetchNumberCartItems } = useCartContext();
+  const [addingToWishlist, setAddingToWishlist] = useState<boolean>(false);
   useEffect(() => {
     if (
       productOptions &&
@@ -179,6 +182,36 @@ export default function ProductDetails({
     }
     toastSuccess('Add to cart success');
     fetchNumberCartItems();
+  };
+
+  const productReturnUrl = () => {
+    const slug = router.query.slug;
+    if (typeof slug === 'string' && slug.length > 0) {
+      return `/products/${slug}`;
+    }
+    return router.asPath || '/';
+  };
+
+  const handleAddToWishlist = async () => {
+    const signedIn = isAuthenticated() || (await refreshAuthentication());
+    if (!signedIn) {
+      redirectToLogin(productReturnUrl());
+      return;
+    }
+
+    setAddingToWishlist(true);
+    try {
+      await addProductToWishlist(currentProduct.id);
+      toastSuccess('Product added to wishlist');
+    } catch (err: unknown) {
+      if (err instanceof Error && err.message === 'UNAUTHORIZED') {
+        redirectToLogin(productReturnUrl());
+        return;
+      }
+      toastError(err instanceof Error ? err.message : 'Failed to add to wishlist');
+    } finally {
+      setAddingToWishlist(false);
+    }
   };
 
   const handleSelectOption = (optionId: number, optionValue: string) => {
@@ -295,6 +328,15 @@ export default function ProductDetails({
               onClick={handleAddToCart}
             >
               <span>Add to cart</span>
+            </button>
+            <button
+              type="button"
+              className="btn btn-outline-dark d-flex align-items-center justify-content-center gap-2 w-100 fs-6 fw-bold mt-2"
+              style={{ height: '56px' }}
+              disabled={addingToWishlist}
+              onClick={handleAddToWishlist}
+            >
+              <span>{addingToWishlist ? 'Adding...' : 'Add to Wishlist'}</span>
             </button>
           </div>
           <div className="d-flex gap-2 mt-2">
