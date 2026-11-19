@@ -22,6 +22,7 @@ import { toastError, toastSuccess } from '../../modules/catalog/services/ToastSe
 import { PostRatingForm, RatingList } from '../../modules/rating/components';
 import { Rating } from '../../modules/rating/models/Rating';
 import { RatingPost } from '../../modules/rating/models/RatingPost';
+import { formatReviewCount } from '../../modules/rating/reviewSummary';
 import {
   createRating,
   getAverageStarByProductId,
@@ -107,7 +108,7 @@ const ProductDetailsPage = ({ product, productOptions, productVariations, pvid }
   const [pageNo, setPageNo] = useState<number>(0);
   const [ratingList, setRatingList] = useState<Rating[]>();
   const [totalPages, setTotalPages] = useState<number>(0);
-  const [totalElements, setTotalElements] = useState<number>(0);
+  const [totalElements, setTotalElements] = useState<number | null>(null);
   const pageSize = 5;
 
   const [ratingStar, setRatingStar] = useState<number>(5);
@@ -120,25 +121,34 @@ const ProductDetailsPage = ({ product, productOptions, productVariations, pvid }
   );
 
   useEffect(() => {
+    let cancelled = false;
+
     getAverageStarByProductId(product.id)
       .then((res) => {
-        setAverageStar(res);
+        if (!cancelled) {
+          setAverageStar(res);
+        }
       })
       .catch((error) => {
         console.error('Error fetching average star:', error);
       });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
 
-  useEffect(() => {
     getRatingsByProductId(product.id, pageNo, pageSize).then((res) => {
-      setRatingList(res.ratingList);
-      setTotalPages(res.totalPages);
-      setTotalElements(res.totalElements);
+      if (!cancelled) {
+        setRatingList(res.ratingList);
+        setTotalPages(res.totalPages);
+        setTotalElements(res.totalElements);
+      }
     });
     getProductOptionValueByProductId(product.id).then((res) => {
-      setProductOptionValueGet(res);
+      if (!cancelled) {
+        setProductOptionValueGet(res);
+      }
     });
+
+    return () => {
+      cancelled = true;
+    };
   }, [pageNo, pageSize, product.id, isPost]);
 
   const handlePageChange = ({ selected }: any) => {
@@ -159,6 +169,7 @@ const ProductDetailsPage = ({ product, productOptions, productVariations, pvid }
     createRating(ratingPost)
       .then(() => {
         setContentRating('');
+        setPageNo(0);
         setIsPost(!isPost);
         toastSuccess('Post a review succesfully');
       })
@@ -195,6 +206,9 @@ const ProductDetailsPage = ({ product, productOptions, productVariations, pvid }
     crumb.splice(1, 0, category);
   }
 
+  const reviewCountLabel =
+    totalElements !== null && totalElements > 0 ? formatReviewCount(totalElements) : null;
+
   return (
     <Container>
       <Head>
@@ -210,6 +224,7 @@ const ProductDetailsPage = ({ product, productOptions, productVariations, pvid }
         pvid={pvid}
         averageStar={averageStar}
         totalRating={totalElements}
+        reviewCountLabel={reviewCountLabel}
       />
 
       {/* Product Attributes */}
@@ -242,7 +257,11 @@ const ProductDetailsPage = ({ product, productOptions, productVariations, pvid }
         <Tab eventKey="Specification" title="Specification" style={{ minHeight: '200px' }}>
           <div className="tabs" dangerouslySetInnerHTML={{ __html: product.specification }}></div>
         </Tab>
-        <Tab eventKey="Reviews" title={`Reviews (${totalElements})`} style={{ minHeight: '200px' }}>
+        <Tab
+          eventKey="Reviews"
+          title={reviewCountLabel ? `Reviews (${reviewCountLabel})` : 'Reviews'}
+          style={{ minHeight: '200px' }}
+        >
           <div>
             <div
               style={{
