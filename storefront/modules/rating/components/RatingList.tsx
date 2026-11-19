@@ -7,8 +7,17 @@ export interface Props {
   ratingList: Rating[] | null;
   pageNo: number;
   totalPages: number;
-  totalElements: number;
+  totalElements: number | null;
   handlePageChange: (selectedItem: { selected: number }) => void;
+}
+
+function reviewerName(rating: Rating): string {
+  const firstName = rating.firstName?.trim() ?? '';
+  const lastName = rating.lastName?.trim() ?? '';
+  if (!firstName && !lastName) {
+    return 'Anonymous';
+  }
+  return `${firstName} ${lastName}`.trim();
 }
 
 export default function RatingList({
@@ -18,26 +27,24 @@ export default function RatingList({
   totalElements,
   handlePageChange,
 }: Props) {
+  if (totalElements == null) {
+    return null;
+  }
+
   return (
     <>
-      {totalElements == 0 ? (
-        <>No reviews for now</>
+      {totalElements === 0 ? (
+        <>No reviews yet</>
       ) : (
         <>
           {ratingList?.map((rating: Rating) => (
             <div className="review-item" key={rating.id}>
-              <p style={{ fontWeight: 'bold' }}>
-                {rating.lastName == null && rating.firstName == null ? (
-                  <>Anonymous</>
-                ) : (
-                  <>
-                    {rating.firstName} {rating.lastName}{' '}
-                    <span className="ms-2">
-                      <Star star={rating.star} />
-                    </span>
-                  </>
-                )}
-              </p>
+              <div style={{ fontWeight: 'bold' }}>
+                {reviewerName(rating)}
+                <span className="ms-2">
+                  <Star star={rating.star} />
+                </span>
+              </div>
               <div className="d-flex justify-content-between">
                 <p className="mx-2">{rating.content}</p>
                 <p className="mx-5">

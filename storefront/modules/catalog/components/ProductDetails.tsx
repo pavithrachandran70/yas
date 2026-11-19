@@ -25,7 +25,8 @@ type ProductDetailProps = {
   productOptionValueGet?: ProductOptionValueDisplay[];
   pvid: string | null;
   averageStar: number;
-  totalRating: number;
+  totalRating: number | null;
+  reviewCountLabel: string | null;
 };
 
 type CurrentSelectedOption = {
@@ -40,6 +41,7 @@ export default function ProductDetails({
   pvid,
   averageStar,
   totalRating,
+  reviewCountLabel,
 }: ProductDetailProps) {
   const [listImages, setListImages] = useState<string[]>([]);
 
@@ -243,6 +245,7 @@ export default function ProductDetails({
         productName={currentProduct.name}
         averageStar={averageStar}
         ratingCount={totalRating}
+        reviewCountLabel={reviewCountLabel}
       />
 
       <div className="row justify-content-center">
