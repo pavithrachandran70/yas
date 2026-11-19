@@ -12,9 +12,13 @@ import com.yas.rating.viewmodel.RatingListVm;
 import com.yas.rating.viewmodel.RatingPostVm;
 import com.yas.rating.viewmodel.RatingVm;
 import com.yas.rating.viewmodel.ResponeStatusVm;
+import jakarta.validation.ConstraintViolation;
+import jakarta.validation.ConstraintViolationException;
+import jakarta.validation.Validator;
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -35,13 +39,16 @@ public class RatingService {
     private final CustomerService customerService;
 
     private final OrderService orderService;
+    private final Validator validator;
 
     public RatingService(RatingRepository ratingRepository,
             CustomerService customerService,
-            OrderService orderService) {
+            OrderService orderService,
+            Validator validator) {
         this.ratingRepository = ratingRepository;
         this.customerService = customerService;
         this.orderService = orderService;
+        this.validator = validator;
     }
 
     public RatingListVm getRatingListByProductId(Long id, int pageNo, int pageSize) {
@@ -92,6 +99,11 @@ public class RatingService {
     }
 
     public RatingVm createRating(RatingPostVm ratingPostVm) {
+        Set<ConstraintViolation<RatingPostVm>> violations = validator.validate(ratingPostVm);
+        if (!violations.isEmpty()) {
+            throw new ConstraintViolationException(violations);
+        }
+
         String userId = AuthenticationUtils.extractUserId();
 
         if (!orderService.checkOrderExistsByProductAndUserWithStatus(

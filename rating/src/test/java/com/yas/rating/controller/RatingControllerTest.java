@@ -4,6 +4,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -32,6 +33,8 @@ import java.util.List;
 import org.hamcrest.Matchers;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
@@ -150,6 +153,40 @@ class RatingControllerTest {
         )
                 .andExpect(status().isOk())
                 .andExpect(MockMvcResultMatchers.jsonPath("$.id", Matchers.is(1)));
+    }
+
+    @Test
+    void testCreateRating_WhenStarIsLowerBound_ShouldSuccess() throws Exception {
+        RatingPostVm vm = new RatingPostVm("rating1", 1, 1L, "product1");
+
+        when(ratingService.createRating(any(RatingPostVm.class))).thenReturn(ratingVm);
+
+        this.mockMvc.perform(post("/storefront/ratings")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectWriter.writeValueAsString(vm))
+        )
+                .andExpect(status().isOk())
+                .andExpect(MockMvcResultMatchers.jsonPath("$.id", Matchers.is(1)));
+    }
+
+    @ParameterizedTest
+    @ValueSource(ints = {0, -1, 6, 99})
+    void testCreateRating_WhenStarOutOfRange_ShouldReturnBadRequest(int star) throws Exception {
+        RatingPostVm vm = new RatingPostVm("rating1", star, 1L, "product1");
+
+        this.mockMvc.perform(post("/storefront/ratings")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectWriter.writeValueAsString(vm))
+        )
+                .andExpect(status().isBadRequest())
+                .andExpect(MockMvcResultMatchers.jsonPath("$.statusCode", Matchers.is("400 BAD_REQUEST")))
+                .andExpect(MockMvcResultMatchers.jsonPath("$.title", Matchers.is("Bad Request")))
+                .andExpect(MockMvcResultMatchers.jsonPath("$.detail", Matchers.is("Request information is not valid")))
+                .andExpect(MockMvcResultMatchers.jsonPath("$.fieldErrors[0]", Matchers.containsString("star")))
+                .andExpect(MockMvcResultMatchers.jsonPath("$.fieldErrors[0]",
+                        Matchers.containsString("must be between 1 and 5")));
+
+        verify(ratingService, never()).createRating(any(RatingPostVm.class));
     }
 
     @Test
