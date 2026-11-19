@@ -27,7 +27,8 @@ public interface RatingRepository extends JpaRepository<Rating, Long> {
             @Param("createdTo") ZonedDateTime createdTo,
             Pageable pageable);
 
-    @Query(value = "SELECT SUM(r.ratingStar), COUNT(r) FROM Rating r Where r.productId = :productId")
+    @Query(value = "SELECT SUM(r.ratingStar), COUNT(r) FROM Rating r "
+            + "Where r.productId = :productId AND r.ratingStar BETWEEN 1 AND 5")
     List<Object[]> getTotalStarsAndTotalRatings(@Param("productId") long productId);
 
     boolean existsByCreatedByAndProductId(String createdBy, Long productId);
