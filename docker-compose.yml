@@ -179,6 +179,7 @@ services:
     - ./deployment/app-config:/app-config
     networks:
       - yas-network
+# Cart service handles shopping cart operations and depends on common-library and postgres
   cart:
     build: ./cart
     image: ghcr.io/nashtech-garage/yas-cart:latest
